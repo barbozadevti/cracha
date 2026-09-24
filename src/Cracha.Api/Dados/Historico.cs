@@ -68,7 +68,7 @@ public sealed partial class HistoricoAzureTable : IHistorico
         _tabela = new TableServiceClient(opcoes.ConnectionString).GetTableClient(opcoes.Tabela);
         _criacao = new Lazy<Task>(() => _tabela.CreateIfNotExistsAsync());
         Descricao = opcoes.ConnectionString.Contains("UseDevelopmentStorage", StringComparison.OrdinalIgnoreCase)
-            || opcoes.ConnectionString.Contains("127.0.0.1")
+            || opcoes.ConnectionString.Contains("devstoreaccount1")
             ? "Azure Table (Azurite)"
             : "Azure Table";
     }

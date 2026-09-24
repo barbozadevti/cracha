@@ -5,8 +5,8 @@
 <h1 align="center">Crachá</h1>
 
 <p align="center">
-  Sistema de RH com cadastro de funcionários, painel de pessoas e histórico de toda alteração, pronto para o Azure.<br>
-  <b>.NET 9 · ASP.NET Core Web API · Entity Framework Core · Azure Table Storage · SQL Server / Azure SQL · SQLite · Bicep · HTML + CSS + JavaScript</b>
+  Sistema de RH com controle de acesso por perfil, organograma, férias com aprovação, crachá com QR Code e histórico auditável de toda alteração, pronto para o Azure.<br>
+  <b>.NET 9 · ASP.NET Core · Entity Framework Core · Azure Table Storage · Azure Blob Storage · Azure SQL / SQL Server · SQLite · Bicep · Docker · GitHub Actions · HTML + CSS + JavaScript</b>
 </p>
 
 <p align="center">
@@ -21,53 +21,130 @@
 
 ## Sobre
 
-O Crachá começou como o desafio *"Sistema de cadastro de funcionários na nuvem Azure"* (CRUD + log de alterações numa Azure Table) e virou um sistema de RH completo:
+O Crachá começou como o desafio *"Sistema de cadastro de funcionários na nuvem Azure"* (CRUD + log de alterações numa Azure Table) e virou um sistema de RH pensado como produto de empresa:
 
-- **Painel**: funcionários ativos, folha mensal, salário médio, tempo médio de casa, **rotatividade** dos últimos 12 meses, admissões × desligamentos por mês, pessoas e folha por departamento e **aniversários de empresa** do mês.
-- **Funcionários**: diretório em **crachás** ou em tabela, com busca por nome, cargo, e-mail ou ramal, filtros por departamento e situação e ordenação.
-- **Ficha**: dados, tempo de casa e a **linha do tempo** da pessoa, com o **antes → depois** de cada campo alterado.
-- **Desligar e reativar** sem apagar o cadastro. Remover também é possível, e o histórico continua disponível.
-- **Departamentos** com cor, quantidade de pessoas e folha. Não é possível remover um departamento que ainda tem gente.
-- **Histórico** geral filtrável por tipo (admissão, atualização, desligamento, reativação, remoção) e departamento.
-- **API documentada** no Swagger, em `/swagger`.
+| Área | O que faz |
+|---|---|
+| **Acesso** | Login por cookie seguro, quatro perfis (Administrador, RH, Gestor, Colaborador), gestão de acessos e troca de senha. Mudar perfil, senha ou situação **derruba as sessões abertas** da pessoa. |
+| **LGPD** | Salário, endereço e histórico só aparecem para o RH, para o **gestor da pessoa** (equipe direta e indireta) e para a **própria pessoa**. Quem não vê salários também não consegue ordenar por eles. |
+| **Auditoria** | Toda alteração fica registrada com **quem fez**, quando e o **antes → depois** de cada campo, numa Azure Table. O histórico sobrevive até à remoção do funcionário. |
+| **Organograma** | Gestor imediato de cada pessoa, árvore navegável e bloqueio de ciclos (ninguém vira gestor do próprio chefe). Quem lidera uma equipe ativa não pode ser desligado antes de transferi-la. |
+| **Férias e ausências** | O colaborador pede, o gestor ou o RH aprova ou recusa (com motivo). Regras de 5 a 30 dias, bloqueio de períodos sobrepostos, calendário da equipe e "ausentes hoje". |
+| **Crachá** | Foto do funcionário no **Azure Blob Storage**, validada pelos bytes do arquivo, e **crachá para impressão** (CR80) com QR Code que abre a ficha. |
+| **Painel** | Quadro, folha, salário médio, tempo de casa, rotatividade, admissões × desligamentos, aniversários de empresa e pedidos aguardando decisão. O gestor vê o painel **da própria equipe**. |
+| **Relatórios** | Exportação CSV pronta para o Excel em português (`;`, UTF-8 com BOM), protegida contra injeção de fórmulas. |
+| **Operação** | Health checks (`/health`), cabeçalhos de segurança (CSP, X-Frame-Options), limite de tentativas de login, Docker Compose e deploy no Azure via Bicep + GitHub Actions. |
+| **Experiência** | Tema claro/escuro, busca rápida com **Ctrl+K**, portal do colaborador, layout para celular. |
 
 O escopo foi definido com **Lean Inception** (visão, personas, jornadas, sequenciador e MVP): veja [docs/lean-inception.md](docs/lean-inception.md).
 
+## Experimente
+
+Suba o sistema (veja [Como executar](#como-executar)) e entre com uma das **contas de demonstração**, todas com a senha `Cracha@2026`:
+
+| Conta | Perfil | O que mostra |
+|---|---|---|
+| `admin@cracha.dev` | Administrador | Tudo, inclusive a tela de **Acessos** |
+| `gabriela.nunes@cracha.dev` | RH | Cadastro completo, salários, lançamento de atestados |
+| `helena.prado@cracha.dev` | Gestor | Diretora: a empresa inteira é a equipe dela |
+| `bruno.carvalho@cracha.dev` | Gestor | Painel e aprovações só da equipe de Tecnologia |
+| `ana.souza@cracha.dev` | Colaborador | Portal pessoal, diretório sem salários, pedido de férias |
+
+As contas aparecem como botões na tela de login. Em produção, `Acesso:Demonstracao = false` as esconde.
+
 ## Telas
 
-| Funcionários | Ficha com linha do tempo |
+| Organograma | Ficha com linha do tempo |
 |---|---|
-| ![Funcionários](docs/telas/funcionarios.png) | ![Ficha](docs/telas/ficha.png) |
+| ![Organograma](docs/telas/organograma.png) | ![Ficha](docs/telas/ficha.png) |
 
-| Histórico | Departamentos |
+| Aprovação de férias (gestor) | Calendário de ausências |
 |---|---|
-| ![Histórico](docs/telas/historico.png) | ![Departamentos](docs/telas/departamentos.png) |
+| ![Ausências](docs/telas/ausencias.png) | ![Calendário](docs/telas/calendario.png) |
 
-## Como o histórico funciona
+| LGPD: colaborador vendo a ficha de outra pessoa | Crachá para impressão com QR Code |
+|---|---|
+| ![LGPD](docs/telas/lgpd-colaborador.png) | ![Crachá](docs/telas/cracha-impresso.png) |
 
-Cada alteração gera um registro imutável com a **foto** do funcionário naquele momento (JSON) e a lista dos **campos que mudaram**, já formatada (`Salário: R$ 7.200,00 → R$ 8.100,00`). Salvar sem mudar nada não gera registro.
+| Funcionários | Histórico com autor |
+|---|---|
+| ![Funcionários](docs/telas/funcionarios.png) | ![Histórico](docs/telas/historico.png) |
 
-O histórico fica atrás da interface `IHistorico`, com duas implementações:
+| Login | Acessos (administrador) |
+|---|---|
+| ![Login](docs/telas/login.png) | ![Acessos](docs/telas/acessos.png) |
 
-| Provedor | Onde grava | Quando usar |
-|---|---|---|
-| `AzureTable` | Azure Table `FuncionarioLog`: **PartitionKey = departamento**, **RowKey = ticks invertidos + id** (os mais novos vêm primeiro) | No Azure, ou localmente com o [Azurite](https://learn.microsoft.com/azure/storage/common/storage-use-azurite) |
-| `Banco` | Tabela `Historico` no mesmo banco | Para rodar sem nenhum serviço do Azure |
+| Tema escuro | Celular |
+|---|---|
+| ![Tema escuro](docs/telas/painel-escuro.png) | <img src="docs/telas/celular-ficha.png" width="260" alt="Celular"> <img src="docs/telas/celular-funcionarios.png" width="260" alt="Celular"> |
 
-```json
-"Historico": {
-  "Provedor": "AzureTable",
-  "ConnectionString": "UseDevelopmentStorage=true",
-  "Tabela": "FuncionarioLog"
-}
+## Arquitetura
+
+```mermaid
+flowchart LR
+    U([Navegador<br>HTML + CSS + JS]) -- cookie HttpOnly<br>SameSite=Strict --> API
+    subgraph App Service
+        API[ASP.NET Core 9<br>Controllers + políticas de acesso]
+    end
+    API -- EF Core + migrations --> SQL[(Azure SQL<br>funcionários, acessos,<br>ausências)]
+    API -- Azure.Data.Tables --> TAB[(Azure Table<br>FuncionarioLog)]
+    API -- Azure.Storage.Blobs --> BLOB[(Azure Blob<br>fotos, privado)]
+    GH[GitHub Actions] -- testes, Docker, Bicep --> API
 ```
+
+| Peça | Local (sem nada instalado) | Local com Azurite / Docker | Azure |
+|---|---|---|---|
+| Cadastro | SQLite em `App_Data` | SQL Server (contêiner) | Azure SQL Database |
+| Histórico | Tabela no mesmo banco | Azure Table no Azurite | Azure Table |
+| Fotos | Pasta `App_Data/fotos` | Blob no Azurite | Blob Storage |
+
+Cada peça fica atrás de uma interface (`IHistorico`, `IArmazenamentoFotos`) e muda só por configuração.
+
+```
+src/Cracha.Api
+├── Controllers/   Funcionarios, Departamentos, Ausencias, Conta, Usuarios, Cracha (foto e QR),
+│                  Exportacao (CSV), Painel (painel, histórico, organograma, sistema)
+├── Dados/         CrachaContext (um por provedor), Historico (Table/banco), Fotos (Blob/disco), Exemplos
+├── Seguranca/     Autenticação por cookie, perfis e políticas, Visibilidade (LGPD), health checks, cabeçalhos
+├── Migrations/    Sqlite/ e SqlServer/
+├── Modelos/       Entidades e DTOs (FotoFuncionario.Comparar gera o antes → depois)
+└── wwwroot/       Frontend em JavaScript puro (SPA com rotas por hash)
+tests/Cracha.Tests 68 testes de integração
+infra/             Bicep + script de deploy
+```
+
+## Permissões
+
+| Ação | Administrador | RH | Gestor | Colaborador |
+|---|:---:|:---:|:---:|:---:|
+| Diretório, organograma, departamentos | ✅ | ✅ | ✅ | ✅ |
+| Ver salário, endereço e histórico | todos | todos | equipe + si | só si |
+| Cadastrar, editar, desligar, remover | ✅ | ✅ | — | — |
+| Painel e histórico geral | empresa | empresa | equipe | — |
+| Pedir férias e folgas | ✅ | ✅ | ✅ | ✅ |
+| Aprovar pedidos | todos | todos | da equipe (nunca o próprio) | — |
+| Lançar licença e atestado | ✅ | ✅ | — | — |
+| Trocar a própria foto | ✅ | ✅ (de todos) | ✅ | ✅ |
+| Gerenciar acessos | ✅ | — | — | — |
+
+As regras são aplicadas na **API** (políticas de autorização + serviço `Visibilidade`); a interface só esconde o que não se aplica.
+
+## Segurança
+
+- **Senhas** com o `PasswordHasher` do ASP.NET Core Identity (PBKDF2), com regravação automática quando o algoritmo evolui; exigência de 8+ caracteres com letras e números.
+- **Sessão** em cookie `HttpOnly` e `SameSite=Strict` (barra CSRF), expiração deslizante de 8 h e **carimbo de segurança**: trocar perfil, senha ou situação invalida as sessões já abertas.
+- **Login** com a mesma mensagem para e-mail inexistente e senha errada, e **limite de 10 tentativas por minuto** por IP (429).
+- **Cabeçalhos**: Content-Security-Policy sem scripts inline, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`.
+- **Upload** de foto validado pelos primeiros bytes (JPEG, PNG, WebP), até 2 MB, em container privado.
+- **CSV** com neutralização de fórmulas (`=`, `+`, `-`, `@`).
+- **Nenhum segredo no repositório**: no Azure, as connection strings vão para o App Service pelo Bicep; no GitHub, o deploy usa **OIDC**.
 
 ## Como executar
 
 ### Com um clique (Windows)
 Dê dois cliques em **`Abrir Cracha.cmd`** (ou no atalho *Crachá* da Área de Trabalho). O navegador abre em `http://localhost:5210`.
 
-Se o Azurite estiver instalado (`npm install -g azurite`), o atalho o inicia sozinho e grava o histórico numa **Azure Table local**, como no Azure. A barra lateral mostra onde os dados estão sendo gravados.
+Se o [Azurite](https://learn.microsoft.com/azure/storage/common/storage-use-azurite) estiver instalado (`npm install -g azurite`), o atalho o inicia sozinho e grava o histórico numa **Azure Table** e as fotos num **Blob Storage** locais, como no Azure. A barra lateral mostra onde cada coisa está sendo gravada.
 
 ### Pelo terminal
 Pré-requisito: [.NET 9 SDK](https://dotnet.microsoft.com/download).
@@ -76,14 +153,15 @@ Pré-requisito: [.NET 9 SDK](https://dotnet.microsoft.com/download).
 dotnet run --project src/Cracha.Api
 ```
 
-Na primeira execução, as **migrations** são aplicadas e o banco SQLite é criado em `src/Cracha.Api/App_Data/cracha.db`, com 6 departamentos e 20 funcionários de exemplo (admissões, promoções, uma transferência e desligamentos, todos com histórico). Para começar vazio, use `"CriarExemplos": false`.
+Na primeira execução as **migrations** são aplicadas e o banco SQLite é criado com 7 departamentos, 21 funcionários em hierarquia, histórico (admissões, promoções, uma transferência, desligamentos), ausências e as contas de demonstração. Para começar vazio, use `"CriarExemplos": false`: só o administrador é criado, com senha aleatória mostrada no log.
 
-Para usar a Azure Table local:
+### Com Docker (como em produção)
 
 ```bash
-azurite-table --location ~/.azurite
-dotnet run --project src/Cracha.Api -- --Historico:Provedor=AzureTable
+docker compose up --build
 ```
+
+Sobe a API, um **SQL Server** e o **Azurite** (Table + Blob). Abra `http://localhost:5210`.
 
 ### Testes
 
@@ -91,9 +169,17 @@ dotnet run --project src/Cracha.Api -- --Historico:Provedor=AzureTable
 dotnet test
 ```
 
-São 25 testes de integração com `WebApplicationFactory`, cobrindo CRUD, validações (em **pt-BR**, para pegar erros de vírgula decimal), e-mail único, comparação antes/depois, desligar/reativar, remoção com histórico preservado, departamentos, painel e filtros do histórico. O relógio é injetado (`TimeProvider`), então datas, tempo de casa e aniversários são previsíveis.
+São **68 testes de integração** com `WebApplicationFactory`, cobrindo:
 
-Os mesmos testes rodam contra o **SQL Server** e a **Azure Table** com variáveis de ambiente. Bancos e tabelas temporários são apagados no fim:
+- CRUD e validações (rodando em **pt-BR**, para pegar erros de vírgula decimal);
+- login, limite de tentativas, sessões derrubadas e regras de cada perfil;
+- LGPD: salário e endereço mascarados, sem ordenação por salário;
+- organograma: ciclos bloqueados e desligamento de quem lidera equipe;
+- fluxo de férias: sobreposição, limites, aprovação só pelo gestor certo;
+- fotos: validação pelos bytes e permissão;
+- QR Code, CSV (inclusive injeção de fórmula), health check e cabeçalhos de segurança.
+
+O relógio é injetado (`TimeProvider`), então datas, tempo de casa e aniversários são previsíveis. Os mesmos testes rodam contra **SQL Server** e **Azurite** com variáveis de ambiente (bancos, tabelas e containers temporários são apagados no fim):
 
 ```powershell
 $env:CRACHA_SQLSERVER = "Server=localhost\sqlexpress;Trusted_Connection=True;TrustServerCertificate=True"
@@ -101,53 +187,51 @@ $env:CRACHA_TABLES = "UseDevelopmentStorage=true"
 dotnet test
 ```
 
-No GitHub Actions, o CI roda as duas combinações (SQLite + histórico no banco e SQL Server + Azurite em contêineres) e valida o Bicep.
+### CI
+
+A cada push, o [GitHub Actions](.github/workflows/ci.yml) roda:
+1. os testes com SQLite;
+2. os testes com SQL Server + Azure Table e Blob (Azurite em contêineres);
+3. `docker compose up` com um teste de fumaça (health, login e painel);
+4. a validação do Bicep.
 
 ## Publicando no Azure
 
-A pasta [`infra/`](infra) tem a infraestrutura como código ([`main.bicep`](infra/main.bicep)) e um script de publicação:
-
-```powershell
-az login
-./infra/deploy.ps1 -GrupoRecursos rg-cracha -Local brazilsouth
-```
+A pasta [`infra/`](infra) tem a infraestrutura como código ([`main.bicep`](infra/main.bicep)):
 
 | Recurso | Uso |
 |---|---|
-| App Service (Linux, .NET 9, plano F1 gratuito) | API + frontend |
-| Azure SQL Database (Basic) | cadastro (`Banco:Provedor = SqlServer`) |
-| Storage Account + tabela `FuncionarioLog` | histórico (`Historico:Provedor = AzureTable`) |
+| App Service (Linux, .NET 9, plano F1 gratuito) | API + frontend, com health check em `/health` |
+| Azure SQL Database (Basic) | cadastro, acessos e ausências |
+| Storage Account: tabela `FuncionarioLog` | histórico de alterações |
+| Storage Account: container privado `fotos` | fotos dos funcionários |
 
-As configurações vão para o App Service como variáveis (`Banco__ConnectionString`, `Historico__ConnectionString`...), sem nenhum segredo no repositório. As migrations são aplicadas quando a aplicação sobe. Para apagar tudo depois: `az group delete --name rg-cracha`.
+Dois caminhos:
 
-## Arquitetura
+- **Pelo terminal**: `az login` e depois `./infra/deploy.ps1 -GrupoRecursos rg-cracha -Local brazilsouth`.
+- **Pelo GitHub**: o workflow [Deploy no Azure](.github/workflows/deploy-azure.yml) (manual) roda os testes, aplica o Bicep, publica e confere o `/health`. Ele autentica por **OIDC** (credencial federada), sem senha da nuvem guardada no GitHub.
 
-```
-src/Cracha.Api
-├── Controllers/     Funcionarios, Departamentos, Painel (painel, histórico e /api/sistema)
-├── Dados/           CrachaContext (um por provedor), IHistorico (Azure Table / banco), Auditoria, Exemplos
-├── Migrations/      Sqlite/ e SqlServer/
-├── Modelos/         Entidades e DTOs (FotoFuncionario.Comparar gera o antes → depois)
-└── wwwroot/         Frontend em HTML, CSS e JavaScript puro (SPA com rotas por hash)
-tests/Cracha.Tests   Testes de integração
-infra/               Bicep + script de deploy
-```
+Para apagar tudo depois: `az group delete --name rg-cracha`.
 
 ## API
 
+Documentada no Swagger em `/swagger` (entre pela tela do sistema e use o Swagger na mesma aba). Principais rotas:
+
 | Verbo | Rota | Descrição |
 |---|---|---|
-| GET | `/api/funcionarios?busca=&departamentoId=&situacao=&ordem=&desc=` | Lista com filtros |
-| GET | `/api/funcionarios/{id}` | Detalhe |
-| POST | `/api/funcionarios` | Cadastra (registra **Inclusão**) |
-| PUT | `/api/funcionarios/{id}` | Atualiza (registra **Atualização** com os campos alterados) |
-| POST | `/api/funcionarios/{id}/desligar` | Desliga (registra **Desligamento**) |
-| POST | `/api/funcionarios/{id}/reativar` | Reativa (registra **Reativação**) |
-| DELETE | `/api/funcionarios/{id}` | Remove (registra **Remoção**) |
-| GET | `/api/funcionarios/{id}/historico` | Linha do tempo da pessoa |
-| GET/POST/PUT/DELETE | `/api/departamentos` | Departamentos |
-| GET | `/api/painel` | Indicadores |
-| GET | `/api/historico?tipo=&departamento=&limite=` | Histórico geral |
+| POST | `/api/conta/entrar` · `/sair` · `/senha` | Sessão |
+| GET | `/api/funcionarios?busca=&departamentoId=&gestorId=&situacao=&ordem=` | Diretório (com máscara LGPD) |
+| POST/PUT/DELETE | `/api/funcionarios[/{id}]` | Cadastro (registra no histórico com autor) |
+| POST | `/api/funcionarios/{id}/desligar` · `/reativar` | Situação |
+| GET | `/api/funcionarios/{id}/historico` | Linha do tempo |
+| GET/PUT/DELETE | `/api/funcionarios/{id}/foto` | Foto (Blob) |
+| GET | `/api/funcionarios/{id}/qrcode` | QR Code do crachá |
+| GET/POST | `/api/ausencias` | Férias e ausências |
+| POST | `/api/ausencias/{id}/decisao` · `/cancelar` | Aprovação |
+| GET | `/api/organograma` · `/api/painel` · `/api/historico` | Visões |
+| GET | `/api/exportar/funcionarios.csv` · `historico.csv` · `ausencias.csv` | Relatórios |
+| GET/POST/PUT | `/api/usuarios` | Acessos (administrador) |
+| GET | `/health` · `/health/vivo` | Saúde |
 
 ## Desafio original
 

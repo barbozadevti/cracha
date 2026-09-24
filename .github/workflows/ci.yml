@@ -49,3 +49,32 @@ jobs:
       - uses: actions/checkout@v4
       - name: az bicep build
         run: az bicep build --file infra/main.bicep --stdout > /dev/null
+
+  docker:
+    name: Docker Compose (teste de fumaça)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Subir API + SQL Server + Azurite
+        run: docker compose up -d --build
+
+      - name: Esperar o /health
+        run: |
+          for i in $(seq 1 60); do
+            curl -fsS http://localhost:5210/health && echo && exit 0
+            sleep 3
+          done
+          docker compose logs api
+          exit 1
+
+      - name: Login e painel com SQL Server + Azure Table + Blob
+        run: |
+          curl -fsS -c cookies -H "Content-Type: application/json" \
+            -d '{"email":"gabriela.nunes@cracha.dev","senha":"Cracha@2026"}' http://localhost:5210/api/conta/entrar > /dev/null
+          curl -fsS -b cookies http://localhost:5210/api/painel | grep -q '"ativos":18'
+          curl -fsS http://localhost:5210/api/sistema | tee /dev/stderr | grep -q 'Azure Table (Azurite)'
+
+      - name: Logs em caso de falha
+        if: failure()
+        run: docker compose logs

@@ -1,0 +1,68 @@
+# Publica o Crachá no Azure (App Service + Azure SQL + Storage) sob demanda.
+#
+# Pré-requisitos, uma vez só:
+#   1. Um App Registration com credencial federada (OIDC) para este repositório e papel
+#      "Contributor" no grupo de recursos; sem senha da nuvem guardada no GitHub.
+#   2. Secrets: AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID e SQL_SENHA.
+name: Deploy no Azure
+
+on:
+  workflow_dispatch:
+    inputs:
+      grupo:
+        description: Grupo de recursos
+        default: rg-cracha
+      regiao:
+        description: Região
+        default: brazilsouth
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: producao
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Testes antes de publicar
+        run: dotnet test --configuration Release
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Infraestrutura (Bicep)
+        id: infra
+        run: |
+          az group create --name "${{ inputs.grupo }}" --location "${{ inputs.regiao }}" --output none
+          saida=$(az deployment group create --resource-group "${{ inputs.grupo }}" \
+            --template-file infra/main.bicep \
+            --parameters sqlSenha="${{ secrets.SQL_SENHA }}" demonstracao=true \
+            --query properties.outputs --output json)
+          echo "nome=$(echo "$saida" | jq -r .nomeApi.value)" >> "$GITHUB_OUTPUT"
+          echo "url=$(echo "$saida" | jq -r .urlApi.value)" >> "$GITHUB_OUTPUT"
+
+      - name: Publicar
+        run: dotnet publish src/Cracha.Api --configuration Release --output publicar
+
+      - uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ steps.infra.outputs.nome }}
+          package: publicar
+
+      - name: Conferir o /health
+        run: |
+          for i in $(seq 1 40); do
+            curl -fsS "${{ steps.infra.outputs.url }}/health" && exit 0
+            sleep 15
+          done
+          exit 1

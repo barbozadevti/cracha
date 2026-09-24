@@ -1,4 +1,4 @@
-// Crachá no Azure: App Service (API + frontend) + SQL Database (cadastro) + Storage Account/Azure Table (histórico).
+// Crachá no Azure: App Service (API + frontend) + SQL Database (cadastro) + Storage Account (histórico na Azure Table, fotos no Blob).
 // Uso: veja infra/deploy.ps1 ou a seção "Publicando no Azure" do README.
 
 @description('Prefixo dos recursos (letras minúsculas e números).')
@@ -17,6 +17,9 @@ param sqlSenha string
 
 @description('Cria departamentos e funcionários de exemplo no primeiro acesso.')
 param criarExemplos bool = true
+
+@description('Mostra as contas de demonstração na tela de login. Desligue numa implantação real.')
+param demonstracao bool = true
 
 @description('SKU do App Service Plan. F1 é gratuito; B1 permite Always On.')
 param skuPlano string = 'F1'
@@ -44,6 +47,18 @@ resource tableService 'Microsoft.Storage/storageAccounts/tableServices@2023-05-0
 resource tabelaLogs 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
   parent: tableService
   name: nomeTabela
+}
+
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
+  parent: storage
+  name: 'default'
+}
+
+// Fotos dos funcionários: container privado, servido só pela API (que confere o login).
+resource containerFotos 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'fotos'
+  properties: { publicAccess: 'None' }
 }
 
 resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
@@ -95,6 +110,9 @@ resource api 'Microsoft.Web/sites@2023-12-01' = {
       linuxFxVersion: 'DOTNETCORE|9.0'
       minTlsVersion: '1.2'
       ftpsState: 'Disabled'
+      http20Enabled: true
+      // O App Service tira do balanceamento a instância em que /health falhar.
+      healthCheckPath: '/health'
       // Chaves com "__" viram seções da configuração do .NET (Banco:Provedor etc.).
       appSettings: [
         {
@@ -120,6 +138,22 @@ resource api 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'Historico__Tabela'
           value: nomeTabela
+        }
+        {
+          name: 'Fotos__Provedor'
+          value: 'Blob'
+        }
+        {
+          name: 'Fotos__ConnectionString'
+          value: 'DefaultEndpointsProtocol=https;AccountName=${storage.name};AccountKey=${storage.listKeys().keys[0].value};EndpointSuffix=${environment().suffixes.storage}'
+        }
+        {
+          name: 'Fotos__Container'
+          value: containerFotos.name
+        }
+        {
+          name: 'Acesso__Demonstracao'
+          value: string(demonstracao)
         }
       ]
     }

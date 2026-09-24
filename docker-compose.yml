@@ -1,0 +1,45 @@
+# Sobe o Crachá como em produção: API + SQL Server + Azurite (Azure Table e Blob Storage locais).
+#   docker compose up --build
+# Depois abra http://localhost:5210 (contas de demonstração na tela de login).
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${SENHA_SQL:-Cracha#Local2026}
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - sql:/var/opt/mssql
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite
+    command: azurite --blobHost 0.0.0.0 --tableHost 0.0.0.0 --location /data --skipApiVersionCheck --loose
+    volumes:
+      - azurite:/data
+
+  api:
+    build: .
+    ports:
+      - "5210:8080"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      azurite:
+        condition: service_started
+    environment:
+      Banco__Provedor: SqlServer
+      Banco__ConnectionString: Server=sqlserver;Database=Cracha;User ID=sa;Password=${SENHA_SQL:-Cracha#Local2026};TrustServerCertificate=True
+      # Chave pública e fixa do emulador (não é segredo): https://learn.microsoft.com/azure/storage/common/storage-use-azurite
+      Historico__Provedor: AzureTable
+      Historico__ConnectionString: &azurite DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;TableEndpoint=http://azurite:10002/devstoreaccount1;
+      Fotos__Provedor: Blob
+      Fotos__ConnectionString: *azurite
+    restart: on-failure
+
+volumes:
+  sql:
+  azurite:

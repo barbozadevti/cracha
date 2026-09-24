@@ -52,7 +52,7 @@ public sealed class FotosNoBlob : IArmazenamentoFotos
         _container = new BlobServiceClient(opcoes.ConnectionString).GetBlobContainerClient(opcoes.Container);
         _criacao = new Lazy<Task>(() => _container.CreateIfNotExistsAsync(PublicAccessType.None));
         Descricao = opcoes.ConnectionString.Contains("UseDevelopmentStorage", StringComparison.OrdinalIgnoreCase)
-            || opcoes.ConnectionString.Contains("127.0.0.1")
+            || opcoes.ConnectionString.Contains("devstoreaccount1")
             ? "Azure Blob (Azurite)"
             : "Azure Blob Storage";
     }
