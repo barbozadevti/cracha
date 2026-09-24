@@ -122,6 +122,7 @@ public sealed partial class HistoricoAzureTable : IHistorico
         public string Departamento { get; set; } = "";
         public string TipoAcao { get; set; } = "";
         public DateTimeOffset Quando { get; set; }
+        public string Autor { get; set; } = "Sistema";
         public double Salario { get; set; }
         public string JSON { get; set; } = "{}";
         public string AlteracoesJSON { get; set; } = "[]";
@@ -139,6 +140,7 @@ public sealed partial class HistoricoAzureTable : IHistorico
                 Departamento = r.Departamento,
                 TipoAcao = r.TipoAcao.ToString(),
                 Quando = r.Quando,
+                Autor = r.Autor,
                 Salario = (double)(foto?.Salario ?? 0),
                 JSON = r.FotoJson,
                 AlteracoesJSON = JsonSerializer.Serialize(r.Alteracoes),
@@ -153,6 +155,7 @@ public sealed partial class HistoricoAzureTable : IHistorico
             Departamento = Departamento,
             TipoAcao = Enum.Parse<TipoAcao>(TipoAcao),
             Quando = Quando,
+            Autor = string.IsNullOrEmpty(Autor) ? "Sistema" : Autor,
             FotoJson = JSON,
             Alteracoes = JsonSerializer.Deserialize<List<CampoAlterado>>(AlteracoesJSON) ?? [],
         };

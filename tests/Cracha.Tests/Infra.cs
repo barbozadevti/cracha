@@ -32,11 +32,12 @@ public sealed class RelogioFixo : TimeProvider
 /// </list>
 /// Bancos e tabelas temporários são apagados no fim.
 /// </summary>
-public sealed class CrachaFactory : WebApplicationFactory<Program>
+public class CrachaFactory : WebApplicationFactory<Program>
 {
     private static readonly string? Servidor = Environment.GetEnvironmentVariable("CRACHA_SQLSERVER");
     private static readonly string? Tabelas = Environment.GetEnvironmentVariable("CRACHA_TABLES");
     private readonly string _nome = $"cracha_teste_{Guid.NewGuid():N}";
+    // Serve para a tabela do histórico e para o container de fotos (minúsculas, letras e números).
     private string Tabela => $"t{_nome.Replace("_", "")}"[..40];
 
     static CrachaFactory()
@@ -47,6 +48,30 @@ public sealed class CrachaFactory : WebApplicationFactory<Program>
     }
 
     private string ArquivoSqlite => Path.Combine(Path.GetTempPath(), $"{_nome}.db");
+    private string PastaFotos => Path.Combine(Path.GetTempPath(), $"{_nome}_fotos");
+
+    /// <summary>Alto nos testes comuns; a classe que testa o bloqueio usa um limite baixo.</summary>
+    protected virtual int TentativasPorMinuto => 1000;
+
+    public const string Senha = "Cracha@2026";
+    public const string Admin = "admin@cracha.dev", Rh = "gabriela.nunes@cracha.dev", Diretora = "helena.prado@cracha.dev",
+        Gestor = "bruno.carvalho@cracha.dev", Colaborador = "ana.souza@cracha.dev";
+
+    private readonly Dictionary<string, HttpClient> _clientes = [];
+
+    /// <summary>Cliente já logado com a conta de demonstração (um por conta, reaproveitado na classe).</summary>
+    public HttpClient Como(string email)
+    {
+        lock (_clientes)
+        {
+            if (_clientes.TryGetValue(email, out var existente))
+                return existente;
+            var cliente = CreateClient();
+            var resposta = cliente.PostAsJsonAsync("/api/conta/entrar", new { email, senha = Senha }).GetAwaiter().GetResult();
+            resposta.EnsureSuccessStatusCode();
+            return _clientes[email] = cliente;
+        }
+    }
 
     protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
     {
@@ -68,6 +93,12 @@ public sealed class CrachaFactory : WebApplicationFactory<Program>
             builder.UseSetting("Historico:Tabela", Tabela);
         }
 
+        builder.UseSetting("Acesso:TentativasPorMinuto", TentativasPorMinuto.ToString());
+        builder.UseSetting("Fotos:Provedor", string.IsNullOrWhiteSpace(Tabelas) ? "Disco" : "Blob");
+        builder.UseSetting("Fotos:ConnectionString", Tabelas ?? "");
+        builder.UseSetting("Fotos:Container", Tabela);
+        builder.UseSetting("Fotos:Pasta", PastaFotos);
+
         builder.ConfigureServices(s =>
         {
             s.RemoveAll<TimeProvider>();
@@ -78,8 +109,13 @@ public sealed class CrachaFactory : WebApplicationFactory<Program>
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
+        if (Directory.Exists(PastaFotos))
+            Directory.Delete(PastaFotos, recursive: true);
         if (!string.IsNullOrWhiteSpace(Tabelas))
+        {
             new TableServiceClient(Tabelas).DeleteTable(Tabela);
+            new Azure.Storage.Blobs.BlobContainerClient(Tabelas, Tabela).DeleteIfExists();
+        }
 
         if (string.IsNullOrWhiteSpace(Servidor))
         {

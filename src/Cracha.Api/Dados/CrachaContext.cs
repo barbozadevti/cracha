@@ -10,6 +10,8 @@ public abstract class CrachaContext(DbContextOptions options) : DbContext(option
 {
     public DbSet<Funcionario> Funcionarios => Set<Funcionario>();
     public DbSet<Departamento> Departamentos => Set<Departamento>();
+    public DbSet<Usuario> Usuarios => Set<Usuario>();
+    public DbSet<Ausencia> Ausencias => Set<Ausencia>();
 
     /// <summary>Histórico no próprio banco, usado quando não há Azure Table configurada.</summary>
     public DbSet<RegistroHistorico> Historico => Set<RegistroHistorico>();
@@ -38,6 +40,42 @@ public abstract class CrachaContext(DbContextOptions options) : DbContext(option
                 .WithMany(d => d.Funcionarios)
                 .HasForeignKey(f => f.DepartamentoId)
                 .OnDelete(DeleteBehavior.Restrict);
+            // Autorrelacionamento do organograma: o controller cuida dos subordinados antes de remover.
+            funcionario.HasOne(f => f.Gestor)
+                .WithMany(g => g.Subordinados)
+                .HasForeignKey(f => f.GestorId)
+                .OnDelete(DeleteBehavior.Restrict);
+            funcionario.Property(f => f.FotoVersao).HasMaxLength(32);
+        });
+
+        modelBuilder.Entity<Usuario>(usuario =>
+        {
+            usuario.Property(u => u.Nome).HasMaxLength(100).IsRequired();
+            usuario.Property(u => u.Email).HasMaxLength(120).IsRequired();
+            usuario.Property(u => u.SenhaHash).HasMaxLength(200).IsRequired();
+            usuario.Property(u => u.Perfil).HasConversion<string>().HasMaxLength(15);
+            usuario.Property(u => u.Carimbo).HasMaxLength(32).IsRequired();
+            usuario.HasIndex(u => u.Email).IsUnique();
+            usuario.HasOne(u => u.Funcionario)
+                .WithMany()
+                .HasForeignKey(u => u.FuncionarioId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<Ausencia>(ausencia =>
+        {
+            ausencia.Ignore(a => a.Dias);
+            ausencia.Property(a => a.Tipo).HasConversion<string>().HasMaxLength(10);
+            ausencia.Property(a => a.Status).HasConversion<string>().HasMaxLength(10);
+            ausencia.Property(a => a.Observacao).HasMaxLength(300);
+            ausencia.Property(a => a.SolicitadaPor).HasMaxLength(100);
+            ausencia.Property(a => a.DecididaPor).HasMaxLength(100);
+            ausencia.Property(a => a.MotivoRecusa).HasMaxLength(300);
+            ausencia.HasIndex(a => new { a.FuncionarioId, a.Inicio });
+            ausencia.HasOne(a => a.Funcionario)
+                .WithMany()
+                .HasForeignKey(a => a.FuncionarioId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<RegistroHistorico>(registro =>
@@ -47,6 +85,7 @@ public abstract class CrachaContext(DbContextOptions options) : DbContext(option
             registro.Property(r => r.Id).HasMaxLength(32);
             registro.Property(r => r.NomeFuncionario).HasMaxLength(100);
             registro.Property(r => r.Departamento).HasMaxLength(40);
+            registro.Property(r => r.Autor).HasMaxLength(100).HasDefaultValue("Sistema");
             registro.Property(r => r.TipoAcao).HasConversion<string>().HasMaxLength(15);
             registro.Property(r => r.Alteracoes).HasConversion(
                 v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),

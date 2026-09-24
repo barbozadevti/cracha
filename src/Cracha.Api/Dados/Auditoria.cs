@@ -12,13 +12,14 @@ public static class Auditoria
         Converters = { new JsonStringEnumConverter() },
     };
 
-    public static RegistroHistorico Registro(TipoAcao tipo, FotoFuncionario? antes, FotoFuncionario depois, DateTimeOffset quando) => new()
+    public static RegistroHistorico Registro(TipoAcao tipo, FotoFuncionario? antes, FotoFuncionario depois, DateTimeOffset quando, string autor) => new()
     {
         FuncionarioId = depois.Id,
         NomeFuncionario = depois.Nome,
         Departamento = depois.Departamento,
         TipoAcao = tipo,
         Quando = quando,
+        Autor = autor,
         FotoJson = JsonSerializer.Serialize(depois, Json),
         // Na remoção, a lista de campos não interessa: a foto guarda como o funcionário estava.
         Alteracoes = tipo == TipoAcao.Remocao ? [] : FotoFuncionario.Comparar(antes, depois),

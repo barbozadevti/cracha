@@ -15,7 +15,7 @@ jobs:
         include:
           - nome: SQLite + histórico no banco
             azure: false
-          - nome: SQL Server + Azure Table (Azurite)
+          - nome: SQL Server + Azure Table e Blob (Azurite)
             azure: true
     steps:
       - uses: actions/checkout@v4
@@ -24,11 +24,11 @@ jobs:
         with:
           dotnet-version: 9.0.x
 
-      - name: Subir SQL Server e Azurite
+      - name: Subir SQL Server e Azurite (Table + Blob)
         if: matrix.azure
         run: |
           docker run -d --name sql -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD='Cracha#Teste123' -p 1433:1433 mcr.microsoft.com/mssql/server:2022-latest
-          docker run -d --name azurite -p 10002:10002 mcr.microsoft.com/azure-storage/azurite azurite-table --tableHost 0.0.0.0 --skipApiVersionCheck
+          docker run -d --name azurite -p 10000:10000 -p 10002:10002 mcr.microsoft.com/azure-storage/azurite azurite --blobHost 0.0.0.0 --tableHost 0.0.0.0 --skipApiVersionCheck --loose
           for i in $(seq 1 30); do
             docker exec sql /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Cracha#Teste123' -C -Q "SELECT 1" >/dev/null 2>&1 && break
             sleep 2

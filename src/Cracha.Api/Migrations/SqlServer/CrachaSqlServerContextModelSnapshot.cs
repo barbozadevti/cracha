@@ -22,6 +22,63 @@ namespace Cracha.Api.Migrations.SqlServer
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("Cracha.Api.Modelos.Ausencia", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset?>("DecididaEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DecididaPor")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateOnly>("Fim")
+                        .HasColumnType("date");
+
+                    b.Property<int>("FuncionarioId")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly>("Inicio")
+                        .HasColumnType("date");
+
+                    b.Property<string>("MotivoRecusa")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("Observacao")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<DateTimeOffset>("SolicitadaEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("SolicitadaPor")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FuncionarioId", "Inicio");
+
+                    b.ToTable("Ausencias");
+                });
+
             modelBuilder.Entity("Cracha.Api.Modelos.Departamento", b =>
                 {
                     b.Property<int>("Id")
@@ -80,6 +137,13 @@ namespace Cracha.Api.Migrations.SqlServer
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<string>("FotoVersao")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<int?>("GestorId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Nome")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -106,6 +170,8 @@ namespace Cracha.Api.Migrations.SqlServer
                     b.HasIndex("EmailProfissional")
                         .IsUnique();
 
+                    b.HasIndex("GestorId");
+
                     b.HasIndex("Nome");
 
                     b.ToTable("Funcionarios");
@@ -120,6 +186,13 @@ namespace Cracha.Api.Migrations.SqlServer
                     b.Property<string>("Alteracoes")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Autor")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasDefaultValue("Sistema");
 
                     b.Property<string>("Departamento")
                         .IsRequired()
@@ -155,6 +228,72 @@ namespace Cracha.Api.Migrations.SqlServer
                     b.ToTable("Historico", (string)null);
                 });
 
+            modelBuilder.Entity("Cracha.Api.Modelos.Usuario", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Ativo")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Carimbo")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<DateTimeOffset>("CriadoEm")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<int?>("FuncionarioId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Perfil")
+                        .IsRequired()
+                        .HasMaxLength(15)
+                        .HasColumnType("nvarchar(15)");
+
+                    b.Property<string>("SenhaHash")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset?>("UltimoAcesso")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.HasIndex("FuncionarioId");
+
+                    b.ToTable("Usuarios");
+                });
+
+            modelBuilder.Entity("Cracha.Api.Modelos.Ausencia", b =>
+                {
+                    b.HasOne("Cracha.Api.Modelos.Funcionario", "Funcionario")
+                        .WithMany()
+                        .HasForeignKey("FuncionarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Funcionario");
+                });
+
             modelBuilder.Entity("Cracha.Api.Modelos.Funcionario", b =>
                 {
                     b.HasOne("Cracha.Api.Modelos.Departamento", "Departamento")
@@ -163,12 +302,34 @@ namespace Cracha.Api.Migrations.SqlServer
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Cracha.Api.Modelos.Funcionario", "Gestor")
+                        .WithMany("Subordinados")
+                        .HasForeignKey("GestorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Departamento");
+
+                    b.Navigation("Gestor");
+                });
+
+            modelBuilder.Entity("Cracha.Api.Modelos.Usuario", b =>
+                {
+                    b.HasOne("Cracha.Api.Modelos.Funcionario", "Funcionario")
+                        .WithMany()
+                        .HasForeignKey("FuncionarioId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Funcionario");
                 });
 
             modelBuilder.Entity("Cracha.Api.Modelos.Departamento", b =>
                 {
                     b.Navigation("Funcionarios");
+                });
+
+            modelBuilder.Entity("Cracha.Api.Modelos.Funcionario", b =>
+                {
+                    b.Navigation("Subordinados");
                 });
 #pragma warning restore 612, 618
         }

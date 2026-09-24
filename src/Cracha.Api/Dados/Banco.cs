@@ -43,6 +43,16 @@ public static class ConfiguracaoBanco
         return services;
     }
 
+    public static IServiceCollection AdicionarFotos(this IServiceCollection services, OpcoesFotos opcoes, string pastaDados)
+    {
+        services.AddSingleton(opcoes);
+        if (opcoes.Provedor == ProvedorFotos.Blob)
+            services.AddSingleton<IArmazenamentoFotos, FotosNoBlob>();
+        else
+            services.AddSingleton<IArmazenamentoFotos>(new FotosEmDisco(string.IsNullOrWhiteSpace(opcoes.Pasta) ? Path.Combine(pastaDados, "fotos") : opcoes.Pasta));
+        return services;
+    }
+
     /// <summary>Aplica as migrations pendentes e, se o banco estiver vazio, cria os dados de exemplo.</summary>
     public static async Task PrepararBancoAsync(this IServiceProvider services, OpcoesBanco opcoes)
     {

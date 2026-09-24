@@ -1,15 +1,17 @@
 using Cracha.Api.Dados;
 using Cracha.Api.Modelos;
+using Cracha.Api.Seguranca;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace Cracha.Api.Controllers;
 
-/// <summary>Departamentos da empresa, com quantidade de ativos e folha mensal.</summary>
+/// <summary>Departamentos da empresa, com quantidade de ativos e folha mensal (a folha só para o RH).</summary>
 [ApiController]
 [Route("api/departamentos")]
 [Produces("application/json")]
-public class DepartamentosController(CrachaContext contexto) : ControllerBase
+public class DepartamentosController(CrachaContext contexto, UsuarioAtual usuario) : ControllerBase
 {
     [HttpGet]
     public async Task<IEnumerable<DepartamentoSaida>> Listar()
@@ -28,6 +30,7 @@ public class DepartamentosController(CrachaContext contexto) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = Politicas.GerirCadastro)]
     [ProducesResponseType<DepartamentoSaida>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<DepartamentoSaida>> Criar(DepartamentoEntrada entrada)
@@ -44,6 +47,7 @@ public class DepartamentosController(CrachaContext contexto) : ControllerBase
 
     /// <summary>Renomeia ou troca a cor. Os registros antigos do histórico mantêm o nome da época.</summary>
     [HttpPut("{id:int}")]
+    [Authorize(Policy = Politicas.GerirCadastro)]
     [ProducesResponseType<DepartamentoSaida>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -65,6 +69,7 @@ public class DepartamentosController(CrachaContext contexto) : ControllerBase
 
     /// <summary>Remove um departamento vazio. Com funcionários (mesmo desligados), responde 409.</summary>
     [HttpDelete("{id:int}")]
+    [Authorize(Policy = Politicas.GerirCadastro)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -84,9 +89,9 @@ public class DepartamentosController(CrachaContext contexto) : ControllerBase
         return NoContent();
     }
 
-    private static DepartamentoSaida Saida(Departamento d)
+    private DepartamentoSaida Saida(Departamento d)
     {
         var ativos = d.Funcionarios.Where(f => f.Situacao == Situacao.Ativo).ToList();
-        return new(d.Id, d.Nome, d.Cor, ativos.Count, ativos.Sum(f => f.Salario));
+        return new(d.Id, d.Nome, d.Cor, ativos.Count, usuario.VeTudo ? ativos.Sum(f => f.Salario) : null);
     }
 }
