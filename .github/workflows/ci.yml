@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  testes:
+    name: Testes (${{ matrix.nome }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - nome: SQLite + histórico no banco
+            azure: false
+          - nome: SQL Server + Azure Table (Azurite)
+            azure: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Subir SQL Server e Azurite
+        if: matrix.azure
+        run: |
+          docker run -d --name sql -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD='Cracha#Teste123' -p 1433:1433 mcr.microsoft.com/mssql/server:2022-latest
+          docker run -d --name azurite -p 10002:10002 mcr.microsoft.com/azure-storage/azurite azurite-table --tableHost 0.0.0.0 --skipApiVersionCheck
+          for i in $(seq 1 30); do
+            docker exec sql /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Cracha#Teste123' -C -Q "SELECT 1" >/dev/null 2>&1 && break
+            sleep 2
+          done
+          echo "CRACHA_SQLSERVER=Server=localhost,1433;User ID=sa;Password=Cracha#Teste123;TrustServerCertificate=True" >> "$GITHUB_ENV"
+          echo "CRACHA_TABLES=UseDevelopmentStorage=true" >> "$GITHUB_ENV"
+
+      - name: Compilar
+        run: dotnet build --configuration Release
+
+      - name: Testar
+        run: dotnet test --configuration Release --no-build --logger "console;verbosity=normal"
+
+  infra:
+    name: Validar Bicep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: az bicep build
+        run: az bicep build --file infra/main.bicep --stdout > /dev/null

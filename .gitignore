@@ -1,0 +1,10 @@
+bin/
+obj/
+.vs/
+*.user
+TestResults/
+src/Cracha.Api/App_Data/
+*.db
+*.db-shm
+*.db-wal
+.claude/

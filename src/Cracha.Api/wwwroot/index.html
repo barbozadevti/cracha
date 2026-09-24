@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Crachá</title>
+  <meta name="description" content="Crachá: sistema de RH com cadastro de funcionários, painel e histórico de alterações.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+  <aside class="lateral">
+    <a class="marca" href="#/">
+      <img src="favicon.svg" alt="" width="30" height="30">
+      <span>Crachá</span>
+    </a>
+    <nav class="menu" aria-label="Principal">
+      <a href="#/" data-rota="painel"><span aria-hidden="true">📊</span> Painel</a>
+      <a href="#/funcionarios" data-rota="funcionarios"><span aria-hidden="true">🪪</span> Funcionários</a>
+      <a href="#/departamentos" data-rota="departamentos"><span aria-hidden="true">🏢</span> Departamentos</a>
+      <a href="#/historico" data-rota="historico"><span aria-hidden="true">🕘</span> Histórico</a>
+    </nav>
+    <button class="botao primario novo" id="novoFuncionario" type="button">+ Novo funcionário</button>
+    <div class="rodape-lateral">
+      <p class="sistema" id="sistema" title="Onde os dados estão sendo gravados"></p>
+      <a class="api" href="/swagger" target="_blank" rel="noopener">API · Swagger ↗</a>
+    </div>
+  </aside>
+
+  <main id="app" class="conteudo" tabindex="-1">
+    <p class="carregando">Carregando…</p>
+  </main>
+
+  <dialog id="modal" class="modal" aria-labelledby="modalTitulo">
+    <form id="formFuncionario" method="dialog" novalidate>
+      <header>
+        <h2 id="modalTitulo">Novo funcionário</h2>
+        <button class="fechar" type="button" data-fechar aria-label="Fechar">×</button>
+      </header>
+      <label class="campo">Nome completo
+        <input name="nome" maxlength="100" required autocomplete="off">
+        <span class="erro" data-erro="nome"></span>
+      </label>
+      <div class="linha">
+        <label class="campo">Cargo
+          <input name="cargo" maxlength="60" required autocomplete="off" list="cargos">
+          <datalist id="cargos"></datalist>
+          <span class="erro" data-erro="cargo"></span>
+        </label>
+        <label class="campo">Departamento
+          <select name="departamentoId" required></select>
+          <span class="erro" data-erro="departamentoId"></span>
+        </label>
+      </div>
+      <div class="linha">
+        <label class="campo">E-mail profissional
+          <input name="emailProfissional" type="email" maxlength="120" required autocomplete="off">
+          <span class="erro" data-erro="emailProfissional"></span>
+        </label>
+        <label class="campo curto">Ramal
+          <input name="ramal" inputmode="numeric" maxlength="4" pattern="\d{4}" required autocomplete="off" placeholder="0000">
+          <span class="erro" data-erro="ramal"></span>
+        </label>
+      </div>
+      <label class="campo">Endereço
+        <input name="endereco" maxlength="200" autocomplete="off" placeholder="Rua, número - cidade/UF (opcional)">
+        <span class="erro" data-erro="endereco"></span>
+      </label>
+      <div class="linha">
+        <label class="campo">Salário (R$)
+          <input name="salario" type="number" min="0.01" step="0.01" required>
+          <span class="erro" data-erro="salario"></span>
+        </label>
+        <label class="campo">Admissão
+          <input name="dataAdmissao" type="date" required>
+          <span class="erro" data-erro="dataAdmissao"></span>
+        </label>
+      </div>
+      <p class="erro geral" data-erro="geral"></p>
+      <footer>
+        <button class="botao" type="button" data-fechar>Cancelar</button>
+        <button class="botao primario" type="submit">Salvar</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="confirmacao" class="modal pequeno" aria-labelledby="confirmacaoTitulo">
+    <form method="dialog">
+      <header><h2 id="confirmacaoTitulo">Confirmar</h2></header>
+      <p id="confirmacaoTexto"></p>
+      <label class="campo" id="confirmacaoData" hidden>Data do desligamento
+        <input type="date" name="data">
+      </label>
+      <footer>
+        <button class="botao" value="nao">Cancelar</button>
+        <button class="botao perigo" value="sim" id="confirmacaoOk">Confirmar</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <div id="aviso" class="aviso" role="status" aria-live="polite"></div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
